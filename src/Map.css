@@ -1,0 +1,27 @@
+.map-cell-unknown {
+    background-color: #d9d9d9;
+}
+
+.map-cell-mine {
+    background-color: #d97073;
+}
+
+.map-cell-certain {
+    background-color: #73d997;
+}
+
+.map-cell-certain.map-cell-candidate {
+    background-color: #40f2e3;
+}
+
+.map-cell-mine.map-cell-candidate {
+    background-color: #f284de;
+}
+
+.map-cell-candidate {
+    background-color: #4cadd9;
+}
+
+.map-cell-open {
+    background-color: #FFF;
+}
