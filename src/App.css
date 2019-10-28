@@ -1,3 +1,7 @@
 .App {
   text-align: left;
 }
+
+.btn.ready-indicator {
+  cursor: auto;
+}

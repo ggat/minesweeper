@@ -1,4 +1,5 @@
 .map-cell-unknown {
+    cursor: pointer;
     background-color: #d9d9d9;
 }
 
@@ -7,10 +8,12 @@
 }
 
 .map-cell-certain {
+    cursor: pointer;
     background-color: #73d997;
 }
 
 .map-cell-certain.map-cell-candidate {
+    cursor: pointer;
     background-color: #40f2e3;
 }
 
@@ -24,4 +27,8 @@
 
 .map-cell-open {
     background-color: #FFF;
+}
+
+.map-cell-exploded {
+    background-color: #ff3321;
 }
