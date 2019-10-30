@@ -147,8 +147,7 @@ class App extends Component {
         <div className="container-fluid pt-3 text-center">
           <div className="row">
             <div className="col-2">
-              {this.state.isBusy ?
-                <Loader type="Grid" color="#00BFFF" height={50} width={50}/> :
+              {this.state.isBusy ? 'Loading...' :
                 <button className="btn btn-success" onClick={this.openFrees} disabled={!this.state.frees.length}>Open
                   free boxes </button>}
             </div>
@@ -166,10 +165,10 @@ class App extends Component {
           </div>
           <div className="row">
             <div className="col-12">
-              <Map onClick={(x, y) => {
+              {/*<Map onClick={(x, y) => {
                 this.open(x, y)
               }} map={this.state.map} mines={this.state.mines} frees={this.state.frees}
-                   candidates={this.state.candidates}/>
+                   candidates={this.state.candidates}/>*/}
               <div className="response">
                 {this.state.response}
               </div>
