@@ -3,11 +3,20 @@ const U = -1;
 function MineSweeper(map) {
   this.map = map;
   this.mines = [];
+  this.frees = [];
+  this.candidates = [];
+  this.freesFound = false;
+  this.equationsByBox = {};
 
   // create initial map to keep flags on mines
   this.forEach((value, r, c) => {
     this.mines[r] = this.mines[r] || [];
     this.mines[r][c] = false;
+  });
+
+  this.forEach((value, r, c) => {
+    this.frees[r] = this.frees[r] || [];
+    this.frees[r][c] = false;
   });
 
   // create keys for easier access to the boxes
@@ -119,16 +128,6 @@ MineSweeper.prototype.minedSiblings = function (r, c) {
   return result;
 };
 
-MineSweeper.prototype.containsBox = function (boxes, box) {
-  for (let i = 0; i < boxes.length; i++) {
-    if (boxes[i][0] === box[0] && boxes[i][1] === box[1]) {
-      return true;
-    }
-  }
-
-  return false;
-};
-
 MineSweeper.prototype.createKeys = function () {
   this.keys = [];
   this.indexes = {};
@@ -136,76 +135,58 @@ MineSweeper.prototype.createKeys = function () {
   for (let r = 0; r < this.map.length; r++) {
     this.keys[r] = [];
     for (let c = 0; c < this.map[r].length; c++) {
-      this.keys[r][c] = r + '' + c;
+      this.keys[r][c] = r + 'x' + c;
       this.indexes[this.keys[r][c]] = [r, c];
     }
   }
 };
 
+MineSweeper.prototype.detectFreeOrMine = function (eq) {
+  if (eq[1] === 0) {
+    for (let i = 0; i < eq[0].length; i++) {
+      const [r, c] = this.indexes[eq[0][i]];
+      this.frees[r][c] = true;
+      this.freesFound = true;
+    }
+  } else if (eq[1] === eq[0].length) {
+    for (let i = 0; i < eq[0].length; i++) {
+      const [r, c] = this.indexes[eq[0][i]];
+      this.mines[r][c] = true;
+    }
+  }
+};
 
-MineSweeper.prototype.createEquations = function () {
 
-  const frees = [];
-  this.equationsByBox = {};
+MineSweeper.prototype.step = function () {
 
-  // create equation and maybe find free boxes and mines
+  // create equations and maybe find free boxes and mines
   this.forEach((value, r, c) => {
     let coveredSiblings;
     if (value !== U && !this.mines[r][c] && (coveredSiblings = this.coveredSiblings(r, c)).length) {
 
-      let sum = value - this.minedSiblings(r, c).length;
+      const sum = value - this.minedSiblings(r, c).length;
+      const equation = [coveredSiblings.map(box => this.keys[box[0]][box[1]]), sum];
 
-      if (sum === 0) {
-        console.log('not here');
-        // all covered siblings are free
-        frees.push(r, c);
-      } else if (sum === coveredSiblings.length) {
-
-        // todo: this can be improved
-        coveredSiblings.forEach(([r, c]) => {
-
-          if (!this.mines[r][c]) {
-            // set flag to indicate mined box
-            this.mines[r][c] = true;
-
-            // if there is any equation that includes this box. We need to correct these.
-            while (this.equationsByBox[this.keys[r][c]].length) {
-              const affectedEquation = this.equationsByBox[this.keys[r][c]].pop();
-
-              // remove mine from equation, mutating original eq
-              this.removeMineFromEquation(affectedEquation, r, c);
-            }
-          }
-        });
-
-        console.log('not even here');
-        // covered siblings are mines
-      } else {
-        console.log('we need to expand');
-        // we need to consider sibling's equations to see if we can isolate value for current box
-
-      }
-
-      const equation = [coveredSiblings, sum];
-
-      // associate this equation to all boxes it includes
-      for (let i = 0; i < coveredSiblings.length; i++) {
-        const key = coveredSiblings[i][0] + '' + coveredSiblings[i][1];
-        this.equationsByBox[key] = this.equationsByBox[key] || [];
-        this.equationsByBox[key].push(equation);
-      }
+      this.addEquation(equation);
     }
   });
 
-  if (!frees.length) {
+  if (!this.freesFound) {
+
     // we were not able to find free boxes so far, lets consider multiple boxes at once, to increase chances.
     for (let [boxKey, ownEquations] of Object.entries(this.equationsByBox)) {
+
       const [boxR, boxC] = this.indexes[boxKey];
 
       const siblingsEquations = this.siblings(boxR, boxC).map(([r, c]) => {
         return this.keys[r] && this.keys[r][c] && this.equationsByBox[this.keys[r][c]];
       }).filter(eq => eq !== undefined);
 
+
+      // if free or mine skip
+      if (this.frees[boxR][boxC] || this.mines[boxR][boxC]) {
+        continue;
+      }
 
       for (let i = 0; i < siblingsEquations.length; i++) {
 
@@ -216,44 +197,19 @@ MineSweeper.prototype.createEquations = function () {
           // sibling's specific equation
           const equation = equations[j];
 
+          // if sibling's equation includes this box skip
+          if (equation[0].indexOf(boxKey) !== -1) {
+            continue;
+          }
+
           for (let k = 0; k < ownEquations.length; k++) {
             const ownEquation = ownEquations[k];
 
-            // console.log('own equation ', boxKey, ownEquation)
-
-            // we can isolate value for this box from equations by finding equation in sibling
-            // boxes that does not include this box and includes all other boxes in current ownEquation
-            if ((ownEquation[0].length - equation[0].length) === 1) {
-              // console.log('equations ', ownEquation, equation);
-
-              const allMembersIncluded = equation[0].every(member1 => ownEquation[0].some(member2 => {
-                const [key1, key2] = [this.keys[member1[0]][member1[1]], this.keys[member2[0]][member2[1]]];
-
-                return (key1 === key2) && key2 !== this.keys[boxR][boxC];
-              }));
-
-              if (allMembersIncluded) {
-                const isolatedValue = ownEquation[1] - equation[1];
-
-                console.log('isolated', boxR, boxC, isolatedValue)
-
-                if (isolatedValue === 0) {
-                  frees.push([boxR, boxC])
-                }
-
-
-                // console.log('isolated value', boxKey, isolatedValue, equation[0], ownEquation[0]);
-                //
-                // // reduce all equations that included this value
-                // ownEquations.forEach(reducibleEquation => {
-                //   this.removeMemberFromEquation(reducibleEquation, boxR, boxC, isolatedValue);
-                //
-                //   if(reducibleEquation[0].length === 1 && reducibleEquation[1] === 0) {
-                //     frees.push([...reducibleEquation[0][0]])
-                //     console.log('isolate value after', reducibleEquation[0][0], reducibleEquation[1])
-                //   }
-                // });
-              }
+            // if all members are of sibling's equation are in included in current ownEquation
+            //  we can create new narrower equation
+            let narrowEquation = this.tryNarrowEquation(ownEquation, equation);
+            if (narrowEquation) {
+              this.addEquation(narrowEquation);
             }
           }
         }
@@ -261,138 +217,109 @@ MineSweeper.prototype.createEquations = function () {
     }
   }
 
-  console.log('frees', frees)
-
-  // console.log('equations', JSON.stringify(equations));
-  //
-  // return equations;
+  return this.results();
 };
 
-MineSweeper.prototype.removeMineFromEquation = function (eq, r, c) {
-  this.removeMemberFromEquation(eq, r, c, 1);
-};
+MineSweeper.prototype.results = function () {
+  const
+    candidates = this.candidates = this.findCandidates(),
+    frees = [],
+    mines = [];
 
-MineSweeper.prototype.removeMemberFromEquation = function (eq, r, c, v) {
-
-  for (let m = 0; m < eq[0].length; m++) {
-    if (eq[0][m][0] === r && eq[0][m][1] === c) {
-
-      // once found remove it
-      eq[0].splice(m, 1);
-
-      // because we remove member from equation, we also need to correct right hand side
-      eq[1] = eq[1] - v;
+  this.forEach((v, r, c) => {
+    if (this.frees[r][c]) {
+      frees.push([r, c]);
+    } else if (this.mines[r][c]) {
+      mines.push([r, c]);
     }
-  }
+  });
+
+  return [frees, mines, candidates];
 };
 
-MineSweeper.prototype.step = function () {
-  const candidates = this.findCandidates();
-  const frees = [];
+MineSweeper.prototype.tryNarrowEquation = function (eq1, eq2) {
+  let result = null;
 
-  this.createEquations();
-
-  /*
-  const maxIterations = 4;
-  let u = 0;
-  while (!frees.length && u < maxIterations) {
-
-    let sums = [];
-
-    candidates.forEach((candidate) => {
-      candidate[2].forEach(([r, c, value]) => {
-        const minedSibs = this.minedSiblings(r, c);
-        const coveredSibs = this.coveredSiblings(r, c);
-
-        let sum = value - minedSibs.length;
-
-        if (sum === 0) {
-
-          coveredSibs.forEach(covered => {
-            if (!this.containsBox(frees, covered) && !this.mines[covered[0]][covered[1]]) {
-              frees.push(covered);
-            }
-          })
-        }
-
-        sums.push([coveredSibs, value - minedSibs.length]);
-      });
-    });
-
-    // if we could not find mines then we should be able to find free box
-    sums.sort((a, b) => b[0].length - a[0].length);
-
-    let foundMines = false;
-    // consider on every iteration we either find mines or certain free box
-    for (let i = 0; i < sums.length; i++) {
-      const sum = sums[i];
-
-      if (sum[0].length === sum[1]) {
-        // all members are mines
-        sum[0].forEach(([r, c]) => {
-          // todo: this can be improved
-          if (!this.mines[r][c]) {
-            foundMines = true;
-            this.mines[r][c] = true;
-          }
-        });
+  if (this.includesAllMembers(eq1[0], eq2[0])) {
+    result = [[], eq1[1] - eq2[1]];
+    for (let l = 0; l < eq1[0].length; l++) {
+      if (eq2[0].indexOf(eq1[0][l]) === -1) {
+        result[0].push(eq1[0][l]);
       }
     }
+  }
 
-    if (foundMines) {
-      continue;
-    }
+  return result;
+};
 
-    const newSums = [];
-    for (let i = 0; i < sums.length; i++) {
-      for (let j = 0; j < sums.length; j++) {
+MineSweeper.prototype.addEquation = function (eq) {
 
-        if (i !== j) {
+  if (!this.hasEquation(eq)) {
+    // newEquationFound = true;
+    this.detectFreeOrMine(eq);
 
-          let subtracted = sums[i][0].filter(n => !sums[j][0].includes(n));
-          const subSum = sums[i][1] - sums[j][1];
+    // associate this equation to all boxes it includes
+    for (let i = 0; i < eq[0].length; i++) {
+      const key = eq[0][i];
+      this.equationsByBox[key] = this.equationsByBox[key] || [];
+      this.equationsByBox[key].push(eq);
 
-          newSums.push([subtracted, subSum]);
+      // try to create new equations based on this new knowledge
+      for (let j = 0; j < this.equationsByBox[key].length; j++) {
+        if (eq !== this.equationsByBox[key][j]) {
+          const narrowEquation = this.tryNarrowEquation(this.equationsByBox[key][j], eq);
 
-          // save certainly free box
-          if (subtracted.length === 1 && subSum === 0) {
-
-            if (!this.containsBox(frees, subtracted[0]) && !this.mines[subtracted[0][0]][subtracted[0][1]]) {
-              frees.push(subtracted[0]);
-            }
+          if (narrowEquation) {
+            this.addEquation(narrowEquation);
           }
         }
       }
     }
-
-    console.log('new sums length', sums.length)
-
-    sums = sums.concat(newSums);
-
-    //TODO: remove limit
-    u++;
   }
-*/
-  return [frees, this.mines, candidates];
+};
+
+MineSweeper.prototype.hasEquation = function (eq) {
+
+  // if any box from this equation has it associated, it means this equation is known
+  const boxEquations = this.equationsByBox[eq[0][0]];
+
+  for (let i = 0; boxEquations && i < boxEquations.length; i++) {
+    if (boxEquations[i][0].length === eq[0].length && this.includesAllMembers(boxEquations[i][0], eq[0])) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+MineSweeper.prototype.includesAllMembers = function (arr1, arr2) {
+  return arr2.every(member1 => arr1.some(member2 => member1 === member2));
 };
 
 MineSweeper.prototype.randomCandidateBox = function () {
   const boxes = this.findCandidateBoxes();
 
+  const corners = [
+    [0,0],
+    [0, this.map[0].length -1],
+    [this.map.length -1, 0],
+    [this.map.length -1, this.map[0].length -1],
+  ];
+
+  // if any corner is not open prioritize it's opening
+  for (let i = 0; i < corners.length; i++) {
+    const [r, c] = corners[i];
+
+    if(this.map[r][c] === U && !this.frees[r][c] && !this.mines[r][c]) {
+      return corners[i];
+    }
+  }
+
   return boxes[Math.round(Math.random() * (boxes.length - 1))];
 };
 
-// export const Solver = MineSweeper;
+export const Solver = MineSweeper;
 
-// export default (map) => {
-//   return new MineSweeper(map).step();
-// };
-
-const map = [
-  [1, U],
-  [1, U],
-  [2, U],
-  [1, U],
-];
-
-console.log(new MineSweeper(map).step())
+export default (map) => {
+  return new MineSweeper(map).step();
+};
