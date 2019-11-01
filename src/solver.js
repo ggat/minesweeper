@@ -1,12 +1,13 @@
 const U = -1;
 
-function MineSweeper(map) {
+function MineSweeper(map, bulkMode = false) {
   this.map = map;
   this.mines = [];
   this.frees = [];
   this.candidates = [];
   this.freesFound = false;
   this.equationsByBox = {};
+  this.bulkMode = bulkMode;
 
   // create initial map to keep flags on mines
   this.forEach((value, r, c) => {
@@ -144,20 +145,87 @@ MineSweeper.prototype.createKeys = function () {
 MineSweeper.prototype.detectFreeOrMine = function (eq) {
   if (eq[1] === 0) {
     for (let i = 0; i < eq[0].length; i++) {
-      const [r, c] = this.indexes[eq[0][i]];
+      const key = eq[0][i];
+      const newEq = [[key], 0];
+      const [r, c] = this.indexes[key];
       this.frees[r][c] = true;
       this.freesFound = true;
+      this.equationsByBox[key] = this.equationsByBox[key] || [];
+      this.equationsByBox[key].push(newEq);
+
+      this.narrowEquationsBy(newEq);
     }
   } else if (eq[1] === eq[0].length) {
     for (let i = 0; i < eq[0].length; i++) {
-      const [r, c] = this.indexes[eq[0][i]];
+      const key = eq[0][i];
+      const newEq = [[key], 1];
+      const [r, c] = this.indexes[key];
       this.mines[r][c] = true;
+      this.equationsByBox[key] = this.equationsByBox[key] || [];
+      this.equationsByBox[key].push(newEq);
+
+      this.narrowEquationsBy(newEq);
+    }
+  }
+};
+
+MineSweeper.prototype.addEquation = function (eq) {
+  if (!this.hasEquation(eq)) {
+    this.detectFreeOrMine(eq);
+    this.pushEquation(eq);
+    this.narrowEquationsBy(eq);
+  }
+};
+
+MineSweeper.prototype.pushEquation = function (eq) {
+  // associate this equation to all boxes it includes
+  for (let i = 0; i < eq[0].length; i++) {
+    const key = eq[0][i];
+    this.equationsByBox[key] = this.equationsByBox[key] || [];
+    this.equationsByBox[key].push(eq);
+  }
+};
+
+MineSweeper.prototype.narrowEquationsBy = function (eq) {
+  for (let i = 0; i < eq[0].length; i++) {
+    const key = eq[0][i];
+
+    // try to create new equations based on this new knowledge
+    for (let j = 0; j < this.equationsByBox[key].length; j++) {
+
+      if (eq !== this.equationsByBox[key][j]) {
+        const narrowEquation = this.tryNarrowEquation(this.equationsByBox[key][j], eq);
+
+        if (narrowEquation) {
+          if (!this.hasEquation(eq)) {
+            this.pushEquation(eq);
+          }
+        }
+      }
     }
   }
 };
 
 
+MineSweeper.prototype.tryNarrowEquation = function (eq1, eq2) {
+  let result = null;
+
+  if (eq1[0].length > eq2[0].length && this.includesAllMembers(eq1[0], eq2[0])) {
+    result = [[], eq1[1] - eq2[1]];
+    for (let l = 0; l < eq1[0].length; l++) {
+      if (eq2[0].indexOf(eq1[0][l]) === -1) {
+        result[0].push(eq1[0][l]);
+      }
+    }
+  }
+
+  return result;
+};
+
+
 MineSweeper.prototype.step = function () {
+
+  this.descriptors = [];
 
   // create equations and maybe find free boxes and mines
   this.forEach((value, r, c) => {
@@ -168,6 +236,8 @@ MineSweeper.prototype.step = function () {
       const equation = [coveredSiblings.map(box => this.keys[box[0]][box[1]]), sum];
 
       this.addEquation(equation);
+
+      this.descriptors.push([r, c]);
     }
   });
 
@@ -211,11 +281,17 @@ MineSweeper.prototype.step = function () {
             if (narrowEquation) {
               this.addEquation(narrowEquation);
             }
+
+            if(this.freesFound && !this.bulkMode) {
+              return this.results();
+            }
           }
         }
       }
     }
   }
+
+  window.equations = this.equationsByBox;
 
   return this.results();
 };
@@ -223,6 +299,7 @@ MineSweeper.prototype.step = function () {
 MineSweeper.prototype.results = function () {
   const
     candidates = this.candidates = this.findCandidates(),
+    descriptors = this.descriptors,
     frees = [],
     mines = [];
 
@@ -234,48 +311,7 @@ MineSweeper.prototype.results = function () {
     }
   });
 
-  return [frees, mines, candidates];
-};
-
-MineSweeper.prototype.tryNarrowEquation = function (eq1, eq2) {
-  let result = null;
-
-  if (this.includesAllMembers(eq1[0], eq2[0])) {
-    result = [[], eq1[1] - eq2[1]];
-    for (let l = 0; l < eq1[0].length; l++) {
-      if (eq2[0].indexOf(eq1[0][l]) === -1) {
-        result[0].push(eq1[0][l]);
-      }
-    }
-  }
-
-  return result;
-};
-
-MineSweeper.prototype.addEquation = function (eq) {
-
-  if (!this.hasEquation(eq)) {
-    // newEquationFound = true;
-    this.detectFreeOrMine(eq);
-
-    // associate this equation to all boxes it includes
-    for (let i = 0; i < eq[0].length; i++) {
-      const key = eq[0][i];
-      this.equationsByBox[key] = this.equationsByBox[key] || [];
-      this.equationsByBox[key].push(eq);
-
-      // try to create new equations based on this new knowledge
-      for (let j = 0; j < this.equationsByBox[key].length; j++) {
-        if (eq !== this.equationsByBox[key][j]) {
-          const narrowEquation = this.tryNarrowEquation(this.equationsByBox[key][j], eq);
-
-          if (narrowEquation) {
-            this.addEquation(narrowEquation);
-          }
-        }
-      }
-    }
-  }
+  return [frees, mines, candidates, descriptors];
 };
 
 MineSweeper.prototype.hasEquation = function (eq) {

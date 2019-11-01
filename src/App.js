@@ -14,19 +14,18 @@ class App extends Component {
     this.state = {
       map: [[]],
       frees: [],
+      mines: [],
       candidates: [],
-      mines: [[]],
       session: null,
       isBusy: false,
       sessionResults: {},
       response: "",
-      autoPilot: true
+      autoPilot: true,
+      pause: false,
     };
 
-    this.openFrees = this.openFrees.bind(this);
-    this.openRandom = this.openRandom.bind(this);
-    this.open = this.open.bind(this);
     this.handleSessionButtonClick = this.handleSessionButtonClick.bind(this);
+    this.togglePause = this.togglePause.bind(this);
 
     this.protocol = new Protocol("ws://hometask.eg1236.com/game1/");
     this.protocol.onStart = () => this.setState(() => ({
@@ -39,25 +38,22 @@ class App extends Component {
     this.lastStatus = null;
   }
 
+  togglePause() {
+    this.setState((state) => {
+      const isPaused = !state.pause;
 
-  async openFrees() {
-    for (let i = 0; i < this.state.frees.length; i++) {
-      const free = this.state.frees[i];
-      this.lastStatus = await this.protocol.open(free[1], free[0]);
-    }
+      if(!isPaused) {
+        this.step();
+      }
 
-    await this.map();
+      return {
+        pause: !state.pause
+      }
+    });
   }
 
-  async open(r, c) {
-    this.lastStatus = await this.protocol.open(c, r);
-    await this.map();
-  }
-
-  async openRandom() {
-    const candidate = this.state.candidates[Math.round((this.state.candidates.length - 1) * Math.random())];
-    this.lastStatus = await this.protocol.open(candidate[1], candidate[0]);
-    await this.map();
+  async open(x, y) {
+    this.lastStatus = await this.protocol.open(x, y);
   }
 
   componentWillUnmount() {
@@ -72,41 +68,51 @@ class App extends Component {
       session: level
     }));
 
-    await this.map();
+    await this.step();
   }
 
-  async map() {
+  async step() {
     const map = await this.protocol.map();
     const solver = new Solver(map);
-    const [frees, mines, candidates] = solver.step();
+    const [frees, mines, candidates, descriptors] = solver.step();
 
     this.setState(() => ({
       map,
       frees,
       candidates,
+      descriptors,
       mines,
     }));
 
-    if (this.state.autoPilot) {
+    if (this.state.autoPilot && !this.state.pause) {
 
-      if(this.finished() === 'no') {
-        if (frees.length) {
-          this.openFrees();
-        } else {
-          const [r, c] = solver.randomCandidateBox();
-          this.open(r, c);
+      const opening = frees.length ? frees : [solver.randomCandidateBox()];
+
+      for (let i = 0; i < opening.length; i++) {
+        const open = opening[i];
+        await this.open(open[1], open[0]);
+
+        if(this.finished() === 'win') {
+          if(this.state.session < 4) {
+            this.lastStatus = null;
+            this.startSession(this.state.session + 1);
+          }
+          return;
+        } else if(this.finished() === 'lose') {
+          // finished, but lose, restart session in order to try again...
+          this.lastStatus = null;
+          this.startSession(this.state.session);
+          return;
         }
-      } else if(this.finished() === 'lose') {
-        // finished, but lose, restart session in order to try again...
-        this.lastStatus = null;
-        this.startSession(this.state.session);
       }
+
+      this.step();
     }
   }
 
   updateSessionResult(result) {
     this.setState((prevState) => {
-      const newState = {sessionResults: {}};
+      const newState = {sessionResults: {...prevState.sessionResults}};
       newState.sessionResults[this.state.session] = result;
       return newState;
     });
@@ -147,7 +153,7 @@ class App extends Component {
         <div className="container-fluid pt-3 text-center">
           <div className="row">
             <div className="col-2">
-              {this.state.isBusy ? 'Loading...' :
+              {this.state.isBusy ? 'Working...' :
                 <button className="btn btn-success" onClick={this.openFrees} disabled={!this.state.frees.length}>Open
                   free boxes </button>}
             </div>
@@ -165,10 +171,13 @@ class App extends Component {
           </div>
           <div className="row">
             <div className="col-12">
-              {/*<Map onClick={(x, y) => {
-                this.open(x, y)
-              }} map={this.state.map} mines={this.state.mines} frees={this.state.frees}
-                   candidates={this.state.candidates}/>*/}
+              <button className="btn btn-success" onClick={this.togglePause}>
+                {this.state.pause ? 'Continue' : 'Pause'}
+              </button>
+              <Map onClick={(x, y) => {
+                this.openSingle(x, y)
+              }} map={this.state.map} mines={this.state.mines} descriptors={this.state.descriptors} frees={this.state.frees}
+                   candidates={this.state.candidates}/>
               <div className="response">
                 {this.state.response}
               </div>

@@ -14,15 +14,34 @@ class Map extends Component {
                 {
                   row.map((col, colIndex) => {
 
-                      let isMine = this.props.mines[rowIndex] && this.props.mines[rowIndex][colIndex];
+                      let isMine = false;
                       let isFree = false;
                       let isCandidate = false;
+                      let isDescriptor = false;
 
                       for (let i = 0; i < this.props.frees.length; i++) {
                         const certainBox = this.props.frees[i];
 
                         if (certainBox[0] === rowIndex && certainBox[1] === colIndex) {
                           isFree = true;
+                          break;
+                        }
+                      }
+
+                      for (let i = 0; i < this.props.descriptors.length; i++) {
+                        const descriptorBox = this.props.descriptors[i];
+
+                        if (descriptorBox[0] === rowIndex && descriptorBox[1] === colIndex) {
+                          isDescriptor = true;
+                          break;
+                        }
+                      }
+
+                      for (let i = 0; i < this.props.mines.length; i++) {
+                        const minedBox = this.props.mines[i];
+
+                        if (minedBox[0] === rowIndex && minedBox[1] === colIndex) {
+                          isMine = true;
                           break;
                         }
                       }
@@ -42,7 +61,7 @@ class Map extends Component {
                         r={rowIndex}
                         c={colIndex}
                         value={col}
-                        {...{isMine, isCandidate, isFree}}
+                        {...{isMine, isCandidate, isFree, isDescriptor}}
                       />
                     }
                   )}

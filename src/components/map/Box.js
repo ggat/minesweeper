@@ -5,7 +5,7 @@ import './Box.css';
 //TODO: validate props
 function Box(props) {
 
-  const {isMine, isFree, isCandidate, r, c, value} = props;
+  const {isMine, isFree, isCandidate, isDescriptor, r, c, value} = props;
 
   let className = 'map-cell-unknown',
       content = value === -1 ? 'U' : value === -2 ? '*' : value;
@@ -14,6 +14,8 @@ function Box(props) {
     className = 'map-cell-mine'
   } else if(isFree) {
     className = 'map-cell-certain'
+  } else if(isDescriptor) {
+    className = 'map-cell-descriptor'
   }  else if (value === -1) {
     className = 'map-cell-unknown'
   } else {
