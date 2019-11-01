@@ -31,7 +31,8 @@ function Box(props) {
       onClick={e => props.onClick(...e.target.dataset.key.split('x').map(val => parseInt(val)))}
       data-key={`${r}x${c}`}
       className={className}>
-      {content}
+      {/*{content}*/}
+      {`${r}x${c}`} <br/> {content}
     </td>
   );
 }

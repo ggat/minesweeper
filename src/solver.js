@@ -1,28 +1,49 @@
 const U = -1;
 
-function MineSweeper(map, bulkMode = false) {
-  this.map = map;
-  this.mines = [];
-  this.frees = [];
+function MineSweeper(map = null, bulkMode = false, luckySteps = 0) {
+  this.bulkMode = bulkMode;
+  this.luckySteps = luckySteps;
+  this.reset();
+  this.updateMap(map);
+}
+
+MineSweeper.prototype.reset = function () {
+  this.mines = null;
+  this.frees = null;
   this.candidates = [];
   this.freesFound = false;
   this.equationsByBox = {};
-  this.bulkMode = bulkMode;
+  this.map = null;
+  this.stepNum = 0;
+};
 
-  // create initial map to keep flags on mines
-  this.forEach((value, r, c) => {
-    this.mines[r] = this.mines[r] || [];
-    this.mines[r][c] = false;
-  });
+MineSweeper.prototype.updateMap = function (map) {
 
-  this.forEach((value, r, c) => {
-    this.frees[r] = this.frees[r] || [];
-    this.frees[r][c] = false;
-  });
+  const initial = !this.map && map;
+  this.map = map;
+  this.candidates = [];
+  this.frees = [];
 
-  // create keys for easier access to the boxes
-  this.createKeys();
-}
+  if(this.map) {
+    this.frees = [];
+    this.forEach((value, r, c) => {
+      this.frees[r] = this.frees[r] || [];
+      this.frees[r][c] = false;
+    });
+  }
+
+  if (initial) {
+    // create initial map to keep flags on mines
+    this.mines = [];
+    this.forEach((value, r, c) => {
+      this.mines[r] = this.mines[r] || [];
+      this.mines[r][c] = false;
+    });
+
+    // create keys for easier access to the boxes
+    this.createKeys();
+  }
+};
 
 MineSweeper.prototype.siblings = function (r, c) {
   const range = [-1, 0, 1];
@@ -150,10 +171,8 @@ MineSweeper.prototype.detectFreeOrMine = function (eq) {
       const [r, c] = this.indexes[key];
       this.frees[r][c] = true;
       this.freesFound = true;
-      this.equationsByBox[key] = this.equationsByBox[key] || [];
-      this.equationsByBox[key].push(newEq);
 
-      this.narrowEquationsBy(newEq);
+      this.newEqs.push(newEq);
     }
   } else if (eq[1] === eq[0].length) {
     for (let i = 0; i < eq[0].length; i++) {
@@ -161,19 +180,24 @@ MineSweeper.prototype.detectFreeOrMine = function (eq) {
       const newEq = [[key], 1];
       const [r, c] = this.indexes[key];
       this.mines[r][c] = true;
-      this.equationsByBox[key] = this.equationsByBox[key] || [];
-      this.equationsByBox[key].push(newEq);
 
-      this.narrowEquationsBy(newEq);
+      this.newEqs.push(newEq);
     }
   }
 };
 
 MineSweeper.prototype.addEquation = function (eq) {
-  if (!this.hasEquation(eq)) {
-    this.detectFreeOrMine(eq);
-    this.pushEquation(eq);
-    this.narrowEquationsBy(eq);
+
+  this.newEqs = [eq];
+
+  while(this.newEqs.length) {
+    const newEquation = this.newEqs.pop();
+
+    if (!this.hasEquation(newEquation)) {
+      this.detectFreeOrMine(newEquation);
+      this.pushEquation(newEquation);
+      this.narrowEquationsBy(newEquation);
+    }
   }
 };
 
@@ -194,12 +218,15 @@ MineSweeper.prototype.narrowEquationsBy = function (eq) {
     for (let j = 0; j < this.equationsByBox[key].length; j++) {
 
       if (eq !== this.equationsByBox[key][j]) {
-        const narrowEquation = this.tryNarrowEquation(this.equationsByBox[key][j], eq);
+        const narrowEquation1 = this.tryNarrowEquation(this.equationsByBox[key][j], eq);
+        const narrowEquation2 = this.tryNarrowEquation(eq, this.equationsByBox[key][j]);
 
-        if (narrowEquation) {
-          if (!this.hasEquation(eq)) {
-            this.pushEquation(eq);
-          }
+        if (narrowEquation1) {
+          this.newEqs.push(narrowEquation1);
+        }
+
+        if (narrowEquation2) {
+          this.newEqs.push(narrowEquation2);
         }
       }
     }
@@ -225,6 +252,10 @@ MineSweeper.prototype.tryNarrowEquation = function (eq1, eq2) {
 
 MineSweeper.prototype.step = function () {
 
+  var t0 = performance.now();
+
+  this.stepNum++;
+
   this.descriptors = [];
 
   // create equations and maybe find free boxes and mines
@@ -240,6 +271,10 @@ MineSweeper.prototype.step = function () {
       this.descriptors.push([r, c]);
     }
   });
+
+  if(this.stepNum <= this.luckySteps) {
+    return [[this.randomCandidateBox()], [], [], []]
+  }
 
   if (!this.freesFound) {
 
@@ -282,7 +317,7 @@ MineSweeper.prototype.step = function () {
               this.addEquation(narrowEquation);
             }
 
-            if(this.freesFound && !this.bulkMode) {
+            if (this.freesFound && !this.bulkMode) {
               return this.results();
             }
           }
@@ -291,9 +326,48 @@ MineSweeper.prototype.step = function () {
     }
   }
 
-  window.equations = this.equationsByBox;
+  // todo: remove this
+  window.eqations = this.equationsByBox;
 
+
+  var t1 = performance.now();
+
+  console.log("Call to step took " + (t1 - t0) + " milliseconds.");
   return this.results();
+};
+
+/**
+ * Find what's the maximum probability for a covered box to be a mine
+ *
+ * @returns {[]}
+ */
+MineSweeper.prototype.probabilities = function () {
+  const result = [];
+
+  for (let [boxKey, equations] of Object.entries(this.equationsByBox)) {
+
+    const [boxR, boxC] = this.indexes[boxKey];
+
+    if(this.map[boxR][boxC] === U && !this.mines[boxR][boxC] && !this.frees[boxR][boxC]) {
+      let maxProbability = -Infinity;
+      for (let i = 0; i < equations.length; i++) {
+        const probability = equations[i][1] / equations[i][0].length;
+        if(probability > maxProbability) {
+          maxProbability = probability;
+        }
+      }
+
+      result.push([boxKey, maxProbability]);
+    }
+  }
+
+  return result;
+};
+
+MineSweeper.prototype.findBoxWithLeastProbability = function () {
+  const probabilities = this.probabilities().filter(([,probability]) => probability !== 0);
+  probabilities.sort(([,probabilityA],[, probabilityB]) => probabilityA - probabilityB);
+  return probabilities[0] || null;
 };
 
 MineSweeper.prototype.results = function () {
@@ -310,6 +384,18 @@ MineSweeper.prototype.results = function () {
       mines.push([r, c]);
     }
   });
+
+  if(!frees.length) {
+    const mostProbable = this.findBoxWithLeastProbability();
+
+    if(mostProbable) {
+      frees.push(this.indexes[mostProbable[0]]);
+    } else {
+      frees.push(this.randomCandidateBox());
+    }
+  }
+
+  console.log('returned frees', frees);
 
   return [frees, mines, candidates, descriptors];
 };
@@ -336,22 +422,46 @@ MineSweeper.prototype.randomCandidateBox = function () {
   const boxes = this.findCandidateBoxes();
 
   const corners = [
-    [0,0],
-    [0, this.map[0].length -1],
-    [this.map.length -1, 0],
-    [this.map.length -1, this.map[0].length -1],
+    [0, 0],
+    [0, this.map[0].length - 1],
+    [this.map.length - 1, 0],
+    [this.map.length - 1, this.map[0].length - 1],
   ];
 
   // if any corner is not open prioritize it's opening
   for (let i = 0; i < corners.length; i++) {
     const [r, c] = corners[i];
 
-    if(this.map[r][c] === U && !this.frees[r][c] && !this.mines[r][c]) {
+    if (this.map[r][c] === U && !this.frees[r][c] && !this.mines[r][c]) {
       return corners[i];
     }
   }
 
-  return boxes[Math.round(Math.random() * (boxes.length - 1))];
+  return this.candidateRandomEdgeBox() || boxes[Math.round(Math.random() * (boxes.length - 1))];
+};
+
+MineSweeper.prototype.candidateRandomEdgeBox = function () {
+  const candidates = this
+    .squarePath()
+    .filter(([r, c]) =>
+      this.map[r][c] === U &&
+      !this.frees[r][c] &&
+      !this.mines[r][c]);
+
+  return candidates.length ? candidates[Math.round(Math.random() * (candidates.length - 1))] : null;
+};
+
+MineSweeper.prototype.squarePath = function () {
+  const topRow = this.range(0, this.map[0].length - 1).map(col => [0, col]);
+  const bottomRow = this.range(0, this.map[0].length - 1).map(col => [this.map.length - 1, col]);
+  const leftCol = this.range(1, this.map.length - 2).map(row => [row, 0]);
+  const rightCol = this.range(1, this.map.length - 2).map(row => [row, this.map[0].length - 1]);
+
+  return [...topRow, ...bottomRow, ...leftCol, ...rightCol];
+};
+
+MineSweeper.prototype.range = function (from = 0, to = 0) {
+  return [...Array(to - from + 1).keys()].map(num => from + num);
 };
 
 export const Solver = MineSweeper;

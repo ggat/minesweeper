@@ -36,13 +36,15 @@ class App extends Component {
     }));
 
     this.lastStatus = null;
+    // todo: correct instantiation
+    this.solver = new Solver(null, false, 4);
   }
 
   togglePause() {
     this.setState((state) => {
       const isPaused = !state.pause;
 
-      if(!isPaused) {
+      if (!isPaused) {
         this.step();
       }
 
@@ -68,13 +70,20 @@ class App extends Component {
       session: level
     }));
 
+    this.solver = new Solver(null, false, 3 * level);
     await this.step();
   }
 
   async step() {
+
+    console.log('start STARTED');
+
+    const step_t0 = performance.now();
+
     const map = await this.protocol.map();
-    const solver = new Solver(map);
-    const [frees, mines, candidates, descriptors] = solver.step();
+    this.solver.updateMap(map);
+    const [frees, mines, candidates, descriptors] = new Solver(map).step();
+    window.freeOnes = frees;
 
     this.setState(() => ({
       map,
@@ -86,28 +95,30 @@ class App extends Component {
 
     if (this.state.autoPilot && !this.state.pause) {
 
-      const opening = frees.length ? frees : [solver.randomCandidateBox()];
-
-      for (let i = 0; i < opening.length; i++) {
-        const open = opening[i];
-        await this.open(open[1], open[0]);
-
-        if(this.finished() === 'win') {
-          if(this.state.session < 4) {
+      for (let i = 0; i < frees.length; i++) {
+        const open = frees[i];
+        const t0 = performance.now();
+        await this.open(open[1], open[0])
+        const t1 = performance.now();
+        if (this.finished() === 'win') {
+          if (this.state.session < 4) {
             this.lastStatus = null;
             this.startSession(this.state.session + 1);
           }
-          return;
-        } else if(this.finished() === 'lose') {
+        } else if (this.finished() === 'lose') {
           // finished, but lose, restart session in order to try again...
           this.lastStatus = null;
           this.startSession(this.state.session);
-          return;
         }
       }
 
       this.step();
     }
+
+    const step_t2 = performance.now();
+    console.log("App.step() took " + (step_t2 - step_t0) + " milliseconds.");
+
+    console.log('start FINISHED');
   }
 
   updateSessionResult(result) {
@@ -124,7 +135,7 @@ class App extends Component {
       const [win, lose] = [this.lastStatus.includes('You win'), this.lastStatus.includes('You lose')];
 
       if (win || lose) {
-        if(win) {
+        if (win) {
           const password = this.lastStatus.split(':')[1].trim();
           this.updateSessionResult(password);
           return 'win';
@@ -174,10 +185,16 @@ class App extends Component {
               <button className="btn btn-success" onClick={this.togglePause}>
                 {this.state.pause ? 'Continue' : 'Pause'}
               </button>
-              <Map onClick={(x, y) => {
-                this.openSingle(x, y)
-              }} map={this.state.map} mines={this.state.mines} descriptors={this.state.descriptors} frees={this.state.frees}
-                   candidates={this.state.candidates}/>
+              <button className="btn btn-success" onClick={() => {
+                console.log(JSON.stringify(this.state.map))
+              }}>
+                current map snap
+              </button>
+              {/*<Map onClick={(x, y) => {*/}
+              {/*  this.openSingle(x, y)*/}
+              {/*}} map={this.state.map} mines={this.state.mines} descriptors={this.state.descriptors}*/}
+              {/*     frees={this.state.frees}*/}
+              {/*     candidates={this.state.candidates}/>*/}
               <div className="response">
                 {this.state.response}
               </div>
