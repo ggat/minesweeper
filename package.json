@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "start": "webpack-dev-server",
-    "build": "webpack --mode=production"
+    "build": "webpack --mode=production",
+    "heroku-prebuild": "npm install --dev"
   },
   "author": "",
   "license": "ISC",
