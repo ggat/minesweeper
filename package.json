@@ -5,7 +5,8 @@
   "scripts": {
     "start": "webpack-dev-server",
     "build": "webpack --mode=production",
-    "heroku-prebuild": "npm install --only=dev"
+    "preinstall": "export NPM_CONFIG_PRODUCTION=false && export NODE_ENV=development",
+    "postinstall": "export NPM_CONFIG_PRODUCTION=true && export NODE_ENV=production"
   },
   "author": "",
   "license": "ISC",
