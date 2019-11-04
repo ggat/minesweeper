@@ -1,8 +1,7 @@
 const U = -1;
 
-function MineSweeper(map = null, bulkMode = false, luckySteps = 0) {
+function MineSweeper(map = null, bulkMode = false) {
   this.bulkMode = bulkMode;
-  this.luckySteps = luckySteps;
   this.reset();
   this.updateMap(map);
 }
@@ -67,17 +66,12 @@ MineSweeper.prototype.forEach = function (callback) {
   }
 };
 
-/**
- * Finds candidates that are covered and have at least one uncovered sibling
- *
- * @returns {[]}
- */
 MineSweeper.prototype.findCandidates = function () {
   const candidates = [];
 
   this.forEach((value, r, c) => {
     const uncovered = this.uncoveredSiblings(r, c);
-    if (value === U && uncovered.length) {
+    if (value === U && uncovered.length && !this.mines[r][c]) {
       candidates.push([r, c, uncovered]);
     }
   });
@@ -85,11 +79,6 @@ MineSweeper.prototype.findCandidates = function () {
   return candidates;
 };
 
-/**
- * Finds candidates that are covered and are not known to be mines
- *
- * @returns {[]}
- */
 MineSweeper.prototype.findCandidateBoxes = function () {
   const candidates = [];
 
@@ -252,10 +241,6 @@ MineSweeper.prototype.tryNarrowEquation = function (eq1, eq2) {
 
 MineSweeper.prototype.step = function () {
 
-  var t0 = performance.now();
-
-  this.stepNum++;
-
   this.descriptors = [];
 
   // create equations and maybe find free boxes and mines
@@ -271,10 +256,6 @@ MineSweeper.prototype.step = function () {
       this.descriptors.push([r, c]);
     }
   });
-
-  if(this.stepNum <= this.luckySteps) {
-    return [[this.randomCandidateBox()], [], [], []]
-  }
 
   if (!this.freesFound) {
 
@@ -326,17 +307,11 @@ MineSweeper.prototype.step = function () {
     }
   }
 
-  // todo: remove this
-  window.eqations = this.equationsByBox;
-
-
-  var t1 = performance.now();
-
-  console.log("Call to step took " + (t1 - t0) + " milliseconds.");
   return this.results();
 };
 
 /**
+ *
  * Find what's the maximum probability for a covered box to be a mine
  *
  * @returns {[]}
@@ -394,8 +369,6 @@ MineSweeper.prototype.results = function () {
       frees.push(this.randomCandidateBox());
     }
   }
-
-  console.log('returned frees', frees);
 
   return [frees, mines, candidates, descriptors];
 };
@@ -463,8 +436,6 @@ MineSweeper.prototype.squarePath = function () {
 MineSweeper.prototype.range = function (from = 0, to = 0) {
   return [...Array(to - from + 1).keys()].map(num => from + num);
 };
-
-export const Solver = MineSweeper;
 
 export default (map) => {
   return new MineSweeper(map).step();
