@@ -1,4 +1,5 @@
 import React from "react";
+import './LvlButton.scss'
 
 class LvlButton extends React.Component {
 
@@ -13,10 +14,10 @@ class LvlButton extends React.Component {
   render() {
     const {lvl} = this.props;
     return (
-      <div className="input-group mb-3">
+      <div className="input-group mb-3 mr-sm-3 LvlButton">
         <div className="input-group-prepend">
           <button onClick={this.props.onClick} key={lvl} disabled={this.otherSessionStarted(lvl)}
-                  className={`btn ${this.isActive(lvl) ? 'btn-success' : 'btn-info' }`}>Start level {lvl}</button>
+                  className={`btn ${this.isActive(lvl) ? 'btn-success' : 'btn-primary' }`}>Start level {lvl}</button>
         </div>
         <input type="text" className="form-control" readOnly value={this.props.status || 'Not finished yet'}/>
       </div>

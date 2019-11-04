@@ -1,0 +1,24 @@
+div.StatProgress {
+  .title {
+    span:nth-child(1) {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 24px;
+    }
+    span:nth-child(2) {
+      font-size: 18px;
+      margin: 0 6px;
+    }
+    span:nth-child(3) {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 32px;
+    }
+  }
+
+  .subtitle {
+
+  }
+
+  .progress {
+    background-color: #1b1b1b;
+  }
+}

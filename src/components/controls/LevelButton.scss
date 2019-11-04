@@ -1,0 +1,11 @@
+.LvlButton {
+
+  input, input:read-only {
+    color: #3BCEAC;
+    background-color: #20052a;
+
+    &.form-control {
+      border-color: #540D6E;
+    }
+  }
+}
