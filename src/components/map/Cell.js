@@ -1,40 +1,33 @@
 import React from "react";
-import './Box.css';
+import './Cell.scss';
 
+function Cell(props) {
+  const {frees, mines, candidates, row, col, value} = props;
 
-//TODO: validate props
-function Box(props) {
+  let className;
+  const content = value === -1 ? '' : value === -2 ? '*' : value;
 
-  const {isMine, isFree, isCandidate, isDescriptor, r, c, value} = props;
-
-  let className = 'map-cell-unknown',
-      content = value === -1 ? 'U' : value === -2 ? '*' : value;
-
-  if(isMine) {
+  if (mines.some(([cRow, cCol]) => cRow === row && cCol === col)) {
     className = 'map-cell-mine'
-  } else if(isFree) {
+  } else if (frees.some(([cRow, cCol]) => cRow === row && cCol === col)) {
     className = 'map-cell-certain'
-  } else if(isDescriptor) {
-    className = 'map-cell-descriptor'
-  }  else if (value === -1) {
+  } else if (candidates.some(([cRow, cCol]) => cRow === row && cCol === col)) {
+    className = ' map-cell-candidate'
+  } else if (value === -1) {
     className = 'map-cell-unknown'
   } else {
     className = 'map-cell-open';
   }
 
-  if (isCandidate) {
-    className += ' map-cell-candidate'
-  }
-
   return (
     <td
-      onClick={e => props.onClick(...e.target.dataset.key.split('x').map(val => parseInt(val)))}
-      data-key={`${r}x${c}`}
+      style={{ width: props.width + '%', paddingBottom: props.width + '%'}}
+      width={props.width}
+      data-key={`${row}x${col}`}
       className={className}>
-      {/*{content}*/}
-      {`${r}x${c}`} <br/> {content}
+      {props.width > 2 && <span style={{position: 'absolute'}}>{content}</span>}
     </td>
   );
 }
 
-export default Box;
+export default React.memo(Cell);

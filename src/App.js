@@ -1,11 +1,11 @@
 import React, {Component} from 'react';
-import './App.css';
-import {Solver} from './solver'
-import Map from "./components/map/Map";
 import Protocol from "./protocol";
-import LvlButton from "./components/controls/LvlButton";
-import "react-loader-spinner/dist/loader/css/react-spinner-loader.css";
-import Loader from 'react-loader-spinner'
+import solve from './solver'
+import MapWithPlaceholder from "./components/map/MapWithPlaceholder";
+import StatProgress from "./components/progress-stat/StatProgress";
+import Stat from "./components/stat/Stat";
+import Levels from "./components/controls/Levels"
+import './App.scss';
 
 class App extends Component {
 
@@ -16,31 +16,42 @@ class App extends Component {
       frees: [],
       mines: [],
       candidates: [],
+      descriptors: [],
       session: null,
       isBusy: false,
       sessionResults: {},
-      response: "",
-      autoPilot: true,
+      opening: {
+        current: 0,
+        total: 0
+      },
+      progress: {
+        current: 0,
+        total: 0
+      },
       pause: false,
     };
 
-    this.handleSessionButtonClick = this.handleSessionButtonClick.bind(this);
-    this.togglePause = this.togglePause.bind(this);
-
     this.protocol = new Protocol("ws://hometask.eg1236.com/game1/");
-    this.protocol.onStart = () => this.setState(() => ({
-      isBusy: true
-    }));
-    this.protocol.onEnd = () => this.setState(() => ({
-      isBusy: false
-    }));
+    this.protocol.onStart = () => this.setState(() => ({isBusy: true}));
+    this.protocol.onEnd = () => this.setState(() => ({isBusy: false}));
 
     this.lastStatus = null;
-    // todo: correct instantiation
-    this.solver = new Solver(null, false, 4);
   }
 
-  togglePause() {
+  componentWillUnmount = () => {
+    this.protocol.close();
+  };
+
+  handleSessionButtonClick = (lvl) => {
+
+    if (this.state.session === lvl) {
+      this.setState(() => ({session: null}))
+    } else {
+      this.startSession(lvl)
+    }
+  };
+
+  handleTogglePause = () => {
     this.setState((state) => {
       const isPaused = !state.pause;
 
@@ -52,17 +63,13 @@ class App extends Component {
         pause: !state.pause
       }
     });
-  }
+  };
 
-  async open(x, y) {
+  open = async (x, y) => {
     this.lastStatus = await this.protocol.open(x, y);
-  }
+  };
 
-  componentWillUnmount() {
-    this.protocol.close();
-  }
-
-  async startSession(level) {
+  startSession = async (level) => {
 
     await this.protocol.startSession(level);
 
@@ -70,20 +77,13 @@ class App extends Component {
       session: level
     }));
 
-    this.solver = new Solver(null, false, 3 * level);
     await this.step();
-  }
+  };
 
-  async step() {
-
-    console.log('start STARTED');
-
-    const step_t0 = performance.now();
+  step = async () => {
 
     const map = await this.protocol.map();
-    this.solver.updateMap(map);
-    const [frees, mines, candidates, descriptors] = new Solver(map).step();
-    window.freeOnes = frees;
+    const [frees, mines, candidates, descriptors] = solve(map);
 
     this.setState(() => ({
       map,
@@ -91,46 +91,72 @@ class App extends Component {
       candidates,
       descriptors,
       mines,
+      progress: this.calculateProgress(map)
     }));
 
-    if (this.state.autoPilot && !this.state.pause) {
+    if (!this.state.pause) {
 
       for (let i = 0; i < frees.length; i++) {
+
+        this.setState(() => ({
+          opening: {
+            current: i + 1,
+            total: frees.length,
+          }
+        }));
+
         const open = frees[i];
-        const t0 = performance.now();
+        let t0 = performance.now();
         await this.open(open[1], open[0])
-        const t1 = performance.now();
+        let t1 = performance.now();
+        console.log("open took " + (t1 - t0) + " milliseconds.");
         if (this.finished() === 'win') {
           if (this.state.session < 4) {
             this.lastStatus = null;
             this.startSession(this.state.session + 1);
           }
+          return;
         } else if (this.finished() === 'lose') {
           // finished, but lose, restart session in order to try again...
           this.lastStatus = null;
           this.startSession(this.state.session);
+          return;
         }
       }
 
       this.step();
     }
+  };
 
-    const step_t2 = performance.now();
-    console.log("App.step() took " + (step_t2 - step_t0) + " milliseconds.");
+  calculateProgress = (map) => {
+    let total = 0, unopened = 0;
 
-    console.log('start FINISHED');
-  }
+    for (let r = 0; r < map.length; r++) {
+      for (let c = 0; c < map[r].length; c++) {
+        if (map[r][c] === -1) {
+          unopened++;
+        }
 
-  updateSessionResult(result) {
+        total++;
+      }
+    }
+
+    return {
+      current: total - unopened,
+        total
+    };
+  };
+
+  updateSessionResult = (result) => {
     this.setState((prevState) => {
       const newState = {sessionResults: {...prevState.sessionResults}};
       newState.sessionResults[this.state.session] = result;
       return newState;
     });
-  }
+  };
 
   // todo: this function is just a piece of art..
-  finished() {
+  finished = () => {
     if (this.lastStatus !== null) {
       const [win, lose] = [this.lastStatus.includes('You win'), this.lastStatus.includes('You lose')];
 
@@ -138,6 +164,7 @@ class App extends Component {
         if (win) {
           const password = this.lastStatus.split(':')[1].trim();
           this.updateSessionResult(password);
+          console.log('it was win', password);
           return 'win';
         } else {
           this.updateSessionResult(this.lastStatus);
@@ -147,57 +174,46 @@ class App extends Component {
     }
 
     return 'no';
-  }
-
-  handleSessionButtonClick(lvl) {
-
-    if (this.state.session === lvl) {
-      this.setState(() => ({session: null}))
-    } else {
-      this.startSession(lvl)
-    }
-  }
+  };
 
   render() {
     return (
       <div className="App">
         <div className="container-fluid pt-3 text-center">
           <div className="row">
-            <div className="col-2">
-              {this.state.isBusy ? 'Working...' :
-                <button className="btn btn-success" onClick={this.openFrees} disabled={!this.state.frees.length}>Open
-                  free boxes </button>}
+            <div className="col-12">
+              <div className="row mb-3">
+                <div className="col-4">
+                  <StatProgress current={this.state.progress.current} total={this.state.progress.total} name={"Left"}/>
+                </div>
+                <div className="col-4">
+                  <StatProgress current={this.state.opening.current} total={this.state.opening.total} name={"Opening"}/>
+                </div>
+                <div className="col-4">
+                  <Stat value={this.state.mines.length} name="Mines"/>
+                </div>
+              </div>
             </div>
-
-            <div className="col-10">
-              {[1, 2, 3, 4].map(lvl => (
-                <div key={lvl} className="w-25 p-1 float-left">
-                  <LvlButton lvl={lvl} session={this.state.session}
-                             onClick={() => this.handleSessionButtonClick(lvl)}
-                             status={this.state.sessionResults[lvl]}
-                  />
-                </div>))}
-            </div>
-
           </div>
           <div className="row">
             <div className="col-12">
-              <button className="btn btn-success" onClick={this.togglePause}>
-                {this.state.pause ? 'Continue' : 'Pause'}
-              </button>
-              <button className="btn btn-success" onClick={() => {
-                console.log(JSON.stringify(this.state.map))
-              }}>
-                current map snap
-              </button>
-              {/*<Map onClick={(x, y) => {*/}
-              {/*  this.openSingle(x, y)*/}
-              {/*}} map={this.state.map} mines={this.state.mines} descriptors={this.state.descriptors}*/}
-              {/*     frees={this.state.frees}*/}
-              {/*     candidates={this.state.candidates}/>*/}
-              <div className="response">
-                {this.state.response}
+              <div className="form-inline">
+                <button className="btn btn-primary mb-3 mr-sm-3" onClick={this.handleTogglePause}>
+                  {this.state.pause ? 'Continue' : 'Pause'}
+                </button>
+                <Levels session={this.state.session}
+                        onClick={this.handleSessionButtonClick}
+                        sessionResults={this.state.sessionResults}/>
               </div>
+            </div>
+          </div>
+          <div className="row">
+            <div className="col-12">
+              <MapWithPlaceholder map={this.state.map}
+                                  frees={this.state.frees}
+                                  mines={this.state.mines}
+                                  candidates={this.state.candidates}
+                                  descriptors={this.state.descriptors}/>
             </div>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import React from "react";
-import './LvlButton.scss'
+import './LevelButton.scss'
 
-class LvlButton extends React.Component {
+class LevelButton extends React.Component {
 
   otherSessionStarted() {
     return this.props.session !== null && this.props.session !== this.props.lvl;
@@ -26,4 +26,4 @@ class LvlButton extends React.Component {
   }
 }
 
-export default LvlButton;
+export default LevelButton;

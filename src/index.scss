@@ -1,5 +1,18 @@
+$enable-rounded: false;
+
+$primary: #540D6E;
+$danger: #EE4266;
+$warning: #FFD23F;
+$info: #3BCEAC;
+$secondary: #CDD1C4;
+$success: #0EAD69;
+
+@import "~bootstrap/scss/bootstrap";
+
 body {
   margin: 0;
   padding: 0;
-  font-family: sans-serif;
+  font-family: 'Space Mono', monospace;
+  background: #270633;
+  color: $info;
 }

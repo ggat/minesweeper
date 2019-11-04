@@ -1,29 +1,23 @@
 import React from "react";
-import './LvlButton.scss'
+import './StatProgress.scss';
 
-class LvlButton extends React.Component {
-
-  otherSessionStarted() {
-    return this.props.session !== null && this.props.session !== this.props.lvl;
-  }
-
-  isActive() {
-    return this.props.session === this.props.lvl;
-  }
-
-  render() {
-    const {lvl} = this.props;
-    return (
-      <div className="input-group mb-3 mr-sm-3 LvlButton">
-        <div className="input-group-prepend">
-          <button onClick={this.props.onClick} key={lvl} disabled={this.otherSessionStarted(lvl)}
-                  className={`btn ${this.isActive(lvl) ? 'btn-success' : 'btn-info' }`}>Start level {lvl}</button>
-        </div>
-        <input type="text" className="form-control" readOnly value={this.props.status || 'Not finished yet'}/>
+function StatProgress(props) {
+  return (
+    <div className="StatProgress text-left">
+      <div className="title">
+        <span>{props.current}</span>
+        <span>/</span>
+        <span>{props.total}</span>
       </div>
+      <div className="subtitle pb-2">{props.name}</div>
+      {props.total > 0 && <div className="progress">
+        <div className="progress-bar bg-info" style={{width: (props.current / props.total * 100) + '%'}}
+             role="progressbar" aria-valuenow="75" aria-valuemin="0"
+             aria-valuemax="100"></div>
+      </div>}
 
-    );
-  }
+    </div>
+  );
 }
 
-export default LvlButton;
+export default StatProgress;

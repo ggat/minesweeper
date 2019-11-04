@@ -1,43 +1,23 @@
 td {
-    width: 5px;
-    height: 5px;
-}
+    border: 1px solid #540D6E;
+    overflow: hidden;
+    text-align: center;
 
-.map-cell-unknown {
-    cursor: pointer;
-    background-color: #d9d9d9;
-}
+    &.map-cell-unknown {
+        cursor: pointer;
+        background-color: lighten(#540D6E, 3);
+    }
 
-.map-cell-mine {
-    background-color: #d97073;
-}
+    &.map-cell-mine {
+        background-color: #FB3640;
+    }
 
-.map-cell-certain {
-    cursor: pointer;
-    background-color: #73d997;
-}
+    &.map-cell-certain {
+        cursor: pointer;
+        background-color: #3BCEAC;
+    }
 
-.map-cell-certain.map-cell-candidate {
-    cursor: pointer;
-    background-color: #40f2e3;
-}
-
-.map-cell-mine.map-cell-candidate {
-    background-color: #f284de;
-}
-
-.map-cell-candidate {
-    background-color: #4cadd9;
-}
-
-.map-cell-open {
-    background-color: #FFF;
-}
-
-.map-cell-exploded {
-    background-color: #ff3321;
-}
-
-.map-cell-descriptor {
-    background-color: #faffd7;
+    &.map-cell-candidate {
+        background-color: #9216BF;
+    }
 }

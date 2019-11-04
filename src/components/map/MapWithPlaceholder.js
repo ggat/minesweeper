@@ -1,18 +1,19 @@
 import React from 'react';
+import Map from "./Map";
 import './Map.scss';
-import Row from './Row'
 
-function Map(props) {
+function MapWithPlaceholder(props) {
 
-  return (
-    <div>
-      <table className="table-minesweeper">
-        <tbody>
-        {props.map.map((row, rowIndex) => <Row key={rowIndex} {...{...props, value: row, row: rowIndex}} />)}
-        </tbody>
-      </table>
-    </div>
+  return ( props.map.length && props.map[0].length ?
+        <Map
+          map={props.map}
+          frees={props.frees}
+          mines={props.mines}
+          candidates={props.candidates}
+          descriptors={props.descriptors}
+        /> :
+        <h2 className="m-5">No map yet. Click any of stage buttons to start playing.</h2>
   );
 }
 
-export default Map;
+export default MapWithPlaceholder;

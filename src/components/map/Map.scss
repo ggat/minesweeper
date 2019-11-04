@@ -1,5 +1,4 @@
-table.table.table-minesweeper tr td {
-    padding: .25rem;
-    font-size: 10px;
-    max-width: 20px;
+table.table-minesweeper {
+    width: 100%;
+    table-layout: fixed;
 }
