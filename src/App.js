@@ -106,10 +106,8 @@ class App extends Component {
         }));
 
         const open = frees[i];
-        let t0 = performance.now();
-        await this.open(open[1], open[0])
-        let t1 = performance.now();
-        console.log("open took " + (t1 - t0) + " milliseconds.");
+        await this.open(open[1], open[0]);
+
         if (this.finished() === 'win') {
           if (this.state.session < 4) {
             this.lastStatus = null;
