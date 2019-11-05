@@ -31,7 +31,7 @@ class App extends Component {
       pause: false,
     };
 
-    this.protocol = new Protocol("ws://hometask.eg1236.com/game1/");
+    this.protocol = new Protocol("wss://hometask.eg1236.com/game1/");
     this.protocol.onStart = () => this.setState(() => ({isBusy: true}));
     this.protocol.onEnd = () => this.setState(() => ({isBusy: false}));
 
