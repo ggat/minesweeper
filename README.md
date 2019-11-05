@@ -1,5 +1,7 @@
 # Hometask for Evolution Gaming interview
 
+You can access hosted on heroku here: https://evo-minesweeper.herokuapp.com or follow instructions below.
+
 To start the app 
 `npm install`
 and
