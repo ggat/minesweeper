@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "webpack-dev-server",
-    "build": "webpack --mode=production"
+    "build": "webpack --mode=production",
+    "test": "mocha 'test/**/*.js' --recursive"
   },
   "author": "",
   "license": "ISC",
@@ -16,8 +17,10 @@
     "@babel/preset-env": "^7.6.0",
     "@babel/preset-react": "^7.0.0",
     "babel-loader": "^8.0.6",
+    "chai": "^4.2.0",
     "copy-webpack-plugin": "^5.0.4",
     "css-loader": "^3.2.0",
+    "mocha": "^6.2.2",
     "node-sass": "^4.12.0",
     "sass-loader": "^8.0.0",
     "style-loader": "^1.0.0",
