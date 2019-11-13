@@ -1,14 +1,27 @@
-const {assert} = require('chai');
+const {assert, expect} = require('chai');
 const {
   MineSweeperMap,
   Constants: {
     BOX_MINE: M,
-    BOX_COVERED: C
+    BOX_COVERED: C,
+    BOX_EXPLODED: E,
+    SESSION_STARTED,
+    SESSION_FAILED,
+    SESSION_SUCCESS,
   }
 } = require('../../src/backend/minesweeper-map');
 
 describe('MineSweeperMap', function () {
 
+  const sampleMap = [
+    [C, C, C, C, C],
+    [C, C, C, C, C],
+    [C, M, C, C, C],
+    [C, C, C, C, C],
+    [C, C, C, C, C],
+    [C, C, C, C, C],
+    [C, C, C, M, M],
+  ];
   let mapGenerator = new MineSweeperMap();
 
   it('throws error if incorrect parameters passed', function () {
@@ -72,43 +85,70 @@ describe('MineSweeperMap', function () {
       percentage = 0.2;
 
     mapGenerator.newSession(width, height, percentage);
-    const map = mapGenerator.currentMap;
+    const map = mapGenerator.currentSecretMap;
 
     const expectedCount = Math.round(width * height * 0.2);
     const actualCount = map.reduce((count, row) =>
       count + row.reduce((count, cell) => count + (cell === M), 0), 0);
 
-    assert(expectedCount === actualCount);
+    expect(actualCount).to.eq(expectedCount);
   });
 
   it('recursively opens zeros', function () {
-    const map = [
-      [C, C, C, C, C],
-      [C, C, C, C, C],
-      [C, M, C, C, C],
-      [C, C, C, C, C],
-      [C, C, C, C, C],
-      [C, C, C, C, C],
-      [C, C, C, M, M],
-    ];
 
-    const expectedOpenedMap = [
+    const expected = [
       [0, 0, 0, 0, 0],
       [1, 1, 1, 0, 0],
-      [C, M, 1, 0, 0],
+      [C, C, 1, 0, 0],
       [1, 1, 1, 0, 0],
       [0, 0, 0, 0, 0],
       [0, 0, 1, 2, 2],
-      [0, 0, 1, M, M]
+      [0, 0, 1, C, C]
     ];
 
-    mapGenerator.newSession(map);
+    mapGenerator.newSession(sampleMap);
     mapGenerator.open(0, 0);
 
-    for (let r = 0; r < expectedOpenedMap.length; r++) {
-      for (let c = 0; c < expectedOpenedMap[r].length; c++) {
-        assert(expectedOpenedMap[r][c] === mapGenerator.currentMap[r][c]);
-      }
-    }
+    expect(mapGenerator.currentMap).to.eql(expected);
+  });
+
+  it('it should return "failed" status when mine opened', function () {
+
+    const expected = [
+      [C, C, C, C, C],
+      [C, C, C, C, C],
+      [C, E, C, C, C],
+      [C, C, C, C, C],
+      [C, C, C, C, C],
+      [C, C, C, C, C],
+      [C, C, C, C, C],
+    ];
+
+    mapGenerator.newSession(sampleMap);
+    const status = mapGenerator.open(1, 2);
+
+    expect(status).to.eq(SESSION_FAILED);
+    expect(mapGenerator.currentMap).to.eql(expected);
+  });
+
+  it('it should return "started" status after open if not finished', function() {
+    let status;
+
+    mapGenerator.newSession(sampleMap);
+
+    status = mapGenerator.open(0, 0);
+    expect(status).to.eq(SESSION_STARTED);
+
+    status = mapGenerator.open(0, 1);
+    expect(status).to.eq(SESSION_STARTED);
+
+    status = mapGenerator.open(2, 6);
+    expect(status).to.eq(SESSION_STARTED);
+  });
+
+  it('it should return "success" status after open if every free box is open', function() {
+    expect(mapGenerator.open(0, 2)).to.eq(SESSION_SUCCESS);
   })
+
+
 });
