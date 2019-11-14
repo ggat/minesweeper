@@ -4,37 +4,23 @@ import solve from './solver'
 import MapWithPlaceholder from "./components/map/MapWithPlaceholder";
 import StatProgress from "./components/progress-stat/StatProgress";
 import Stat from "./components/stat/Stat";
-import Levels from "./components/controls/Levels"
+import Levels from "./components/controls/Levels";
+import * as sessionSelectors from "./reducers/session";
+import {connect} from "react-redux";
 import './App.scss';
+import {setMap, setSolverResult, setProgress, setOpening} from "./actions/session";
 
 class App extends Component {
 
   constructor(props) {
     super(props);
     this.state = {
-      map: [[]],
-      frees: [],
-      mines: [],
-      candidates: [],
-      descriptors: [],
       session: null,
-      isBusy: false,
       sessionResults: {},
-      opening: {
-        current: 0,
-        total: 0
-      },
-      progress: {
-        current: 0,
-        total: 0
-      },
       pause: false,
     };
 
     this.protocol = new Protocol("ws://hometask.eg1236.com/game1/");
-    this.protocol.onStart = () => this.setState(() => ({isBusy: true}));
-    this.protocol.onEnd = () => this.setState(() => ({isBusy: false}));
-
     this.lastStatus = null;
   }
 
@@ -83,27 +69,21 @@ class App extends Component {
   step = async () => {
 
     const map = await this.protocol.map();
-    const [frees, mines, candidates, descriptors] = solve(map);
+    const solverResult = solve(map);
+    const [frees] = solverResult;
 
-    this.setState(() => ({
-      map,
-      frees,
-      candidates,
-      descriptors,
-      mines,
-      progress: this.calculateProgress(map)
-    }));
+    this.props.setMap(map);
+    this.props.setSolverResult(solverResult);
+    this.props.setProgress(this.calculateProgress(map));
 
     if (!this.state.pause) {
 
       for (let i = 0; i < frees.length; i++) {
 
-        this.setState(() => ({
-          opening: {
-            current: i + 1,
-            total: frees.length,
-          }
-        }));
+        this.props.setOpening({
+          current: i + 1,
+          total: frees.length,
+        });
 
         const open = frees[i];
         await this.open(open[1], open[0]);
@@ -141,7 +121,7 @@ class App extends Component {
 
     return {
       current: total - unopened,
-        total
+      total
     };
   };
 
@@ -182,13 +162,13 @@ class App extends Component {
             <div className="col-12">
               <div className="row mb-3">
                 <div className="col-4">
-                  <StatProgress current={this.state.progress.current} total={this.state.progress.total} name={"Left"}/>
+                  <StatProgress current={this.props.progress.current} total={this.props.progress.total} name="Left"/>
                 </div>
                 <div className="col-4">
-                  <StatProgress current={this.state.opening.current} total={this.state.opening.total} name={"Opening"}/>
+                  <StatProgress current={this.props.opening.current} total={this.props.opening.total} name="Opening"/>
                 </div>
                 <div className="col-4">
-                  <Stat value={this.state.mines.length} name="Mines"/>
+                  <Stat value={this.props.mineCount} name="Mines"/>
                 </div>
               </div>
             </div>
@@ -207,11 +187,7 @@ class App extends Component {
           </div>
           <div className="row">
             <div className="col-12">
-              <MapWithPlaceholder map={this.state.map}
-                                  frees={this.state.frees}
-                                  mines={this.state.mines}
-                                  candidates={this.state.candidates}
-                                  descriptors={this.state.descriptors}/>
+              <MapWithPlaceholder />
             </div>
           </div>
         </div>
@@ -220,4 +196,17 @@ class App extends Component {
   }
 }
 
-export default App;
+const stateToProps = state => ({
+  progress: sessionSelectors.getProgress(state),
+  opening: sessionSelectors.getOpening(state),
+  mineCount: sessionSelectors.getMineCount(state),
+});
+
+const dispatchToProps = dispatch => ({
+  setMap: (map) => dispatch(setMap(map)),
+  setSolverResult: (result) => dispatch(setSolverResult(result)),
+  setProgress: (progress) => dispatch(setProgress(progress)),
+  setOpening: (opening) => dispatch(setOpening(opening))
+});
+
+export default connect(stateToProps, dispatchToProps)(App);

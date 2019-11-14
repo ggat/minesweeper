@@ -1,9 +1,10 @@
 import React from 'react';
 import Map from "./Map";
 import './Map.scss';
+import {connect} from "react-redux";
+import * as sessionSelectors from "../../reducers/session";
 
 function MapWithPlaceholder(props) {
-
   return ( props.map.length && props.map[0].length ?
         <Map
           map={props.map}
@@ -16,4 +17,12 @@ function MapWithPlaceholder(props) {
   );
 }
 
-export default MapWithPlaceholder;
+const stateToProps = state => ({
+  map: sessionSelectors.getMap(state),
+  frees: sessionSelectors.getFrees(state),
+  mines: sessionSelectors.getMines(state),
+  candidates: sessionSelectors.getCandidates(state),
+  descriptors: sessionSelectors.getDescriptors(state),
+});
+
+export default connect(stateToProps)(MapWithPlaceholder);
