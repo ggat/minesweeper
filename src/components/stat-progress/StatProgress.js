@@ -1,5 +1,4 @@
 import React from "react";
-import './StatProgress.scss';
 
 function StatProgress(props) {
   return (
