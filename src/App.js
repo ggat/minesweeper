@@ -21,7 +21,7 @@ class App extends Component {
     };
 
     this.protocol = new Protocol("ws://hometask.eg1236.com/game1/");
-    this.lastStatus = null;
+    this.lastStatus = '';
   }
 
   componentWillUnmount = () => {
@@ -85,19 +85,9 @@ class App extends Component {
           total: frees.length,
         });
 
-        const open = frees[i];
-        await this.open(open[1], open[0]);
+        await this.open(frees[i][1], frees[i][0]);
 
-        if (this.finished() === 'win') {
-          if (this.state.session < 4) {
-            this.lastStatus = null;
-            this.startSession(this.state.session + 1);
-          }
-          return;
-        } else if (this.finished() === 'lose') {
-          // finished, but lose, restart session in order to try again...
-          this.lastStatus = null;
-          this.startSession(this.state.session);
+        if (this.finished()) {
           return;
         }
       }
@@ -127,31 +117,38 @@ class App extends Component {
 
   updateSessionResult = (result) => {
     this.setState((prevState) => {
-      const newState = {sessionResults: {...prevState.sessionResults}};
-      newState.sessionResults[this.state.session] = result;
-      return newState;
+      const sessionResults = {...prevState.sessionResults};
+      sessionResults[this.state.session] = result;
+
+      return {
+        ...prevState,
+        sessionResults
+      };
     });
   };
 
-  // todo: this function is just a piece of art..
   finished = () => {
-    if (this.lastStatus !== null) {
-      const [win, lose] = [this.lastStatus.includes('You win'), this.lastStatus.includes('You lose')];
+    if (this.lastStatus.includes('You win')) {
+      const password = this.lastStatus.split(':')[1].trim();
+      this.updateSessionResult(password);
 
-      if (win || lose) {
-        if (win) {
-          const password = this.lastStatus.split(':')[1].trim();
-          this.updateSessionResult(password);
-          console.log('it was win', password);
-          return 'win';
-        } else {
-          this.updateSessionResult(this.lastStatus);
-          return 'lose';
-        }
+      if (this.state.session < 4) {
+        this.lastStatus = null;
+        this.startSession(this.state.session + 1);
       }
+      return true;
     }
 
-    return 'no';
+    if (this.lastStatus.includes('You lose')) {
+      this.updateSessionResult(this.lastStatus);
+
+      this.lastStatus = null;
+      this.startSession(this.state.session);
+
+      return true;
+    }
+
+    return false;
   };
 
   render() {
@@ -187,7 +184,7 @@ class App extends Component {
           </div>
           <div className="row">
             <div className="col-12">
-              <MapWithPlaceholder />
+              <MapWithPlaceholder/>
             </div>
           </div>
         </div>
