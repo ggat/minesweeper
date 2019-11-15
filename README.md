@@ -1,4 +1,4 @@
-# Hometask for Evolution Gaming interview
+# Minsweeper
 
 You can access hosted on heroku here: https://evo-minesweeper.herokuapp.com or follow instructions below.
 
