@@ -1,5 +1,12 @@
-class Protocol {
-  constructor(url) {
+export class Protocol {
+
+  private ws: WebSocket
+  private commandQueue: any[]
+  private _commandRunning: any
+  public onStart: Function | undefined
+  public onEnd: Function | undefined
+
+  constructor(url: string) {
     this.ws = new WebSocket(url);
     this.commandQueue = [];
     this.commandRunning = false;
@@ -15,32 +22,32 @@ class Protocol {
     const [command, resolve, reject] = this.commandQueue.shift();
     this.commandRunning = true;
 
-    const onmessage = ({data}) => {
+    const onmessage = ({data}: {data: any}) => {
       this.commandRunning = false;
       this.ws.removeEventListener('message', onmessage);
       resolve(data);
     };
 
-    const onerror = (err) => {
+    const onerror = (err: {err: any}) => {
       this.commandRunning = false;
-      this.ws.removeEventListener('error', onerror);
+      this.ws.removeEventListener('error', onerror as any);
       reject(err);
     };
 
     this.ws.addEventListener('message', onmessage);
-    this.ws.addEventListener('error', onerror);
+    this.ws.addEventListener('error', onerror as any);
 
     this.ws.send(command);
   }
 
-  _createExecutor(cmd) {
-    return (resolve, reject) => {
+  _createExecutor(cmd: any) {
+    return (resolve: any, reject: any) => {
       this.commandQueue.push([cmd, resolve, reject]);
       this._runNextCommand();
     }
   }
 
-  _rawMapToArray(data) {
+  _rawMapToArray(data: any) {
     const result = [];
     const lines = data.split('\n');
 
@@ -52,7 +59,8 @@ class Protocol {
     for (let r = 0; r < lines.length; r++) {
       result[r] = [];
       for (let c = 0; c < lines[r].length; c ++) {
-        result[r][c] = mapping[lines[r][c]] || parseInt(lines[r][c]);
+        const symbol = lines[r][c] as ('*' | '□')
+        (result[r][c] as any) = mapping[symbol] || parseInt(lines[r][c]);
       }
     }
 
@@ -77,13 +85,13 @@ class Protocol {
     return new Promise(this._createExecutor('help'));
   }
 
-  async startSession(level) {
+  async startSession(level: any) {
 
     const promise = new Promise(this._createExecutor(`new ${level}`));
 
     return new Promise((resolve, reject) => {
       promise.then(data => {
-        const status = data.split(':')[1].trim();
+        const status = (data as any).split(':')[1].trim();
         if(status) {
           resolve(status);
         } else {
@@ -98,17 +106,17 @@ class Protocol {
 
     return new Promise((resolve, reject) => {
       promise.then(data => {
-        resolve(this._rawMapToArray(data.split(':')[1].trim()));
+        resolve(this._rawMapToArray((data as any).split(':')[1].trim()));
       }).catch(err => reject(err))
     })
   }
 
-  async open(x, y) {
+  async open(x: any, y: any) {
     const promise = new Promise(this._createExecutor(`open ${x} ${y}`));
 
     return new Promise((resolve, reject) => {
       promise.then(data => {
-        const status = data.slice(data.indexOf(':') + 1, data.length).trim();
+        const status = (data as any).slice((data as any).indexOf(':') + 1, (data as any).length).trim();
         if(status) {
           resolve(status);
         } else {

@@ -7,9 +7,33 @@ import Stat from "./components/stat/Stat";
 import Levels from "./components/controls/Levels"
 import './App.scss';
 
-class App extends Component {
+interface Props {}
+interface State {
+  map: any[][],
+  frees: any[],
+  mines: any[],
+  candidates: any[],
+  descriptors: any[],
+  session: number | null,
+  isBusy: boolean,
+  sessionResults: {[key: string]: string},
+  opening: {
+    current: number,
+    total: number
+  },
+  progress: {
+    current: number,
+    total: number
+  },
+  pause: boolean,
+}
 
-  constructor(props) {
+class App extends Component<Props, State> {
+
+  private protocol: Protocol
+  private lastStatus: string | null
+
+  constructor(props: Props) {
     super(props);
     this.state = {
       map: [[]],
@@ -42,7 +66,7 @@ class App extends Component {
     this.protocol.close();
   };
 
-  handleSessionButtonClick = (lvl) => {
+  handleSessionButtonClick = (lvl: any) => {
 
     if (this.state.session === lvl) {
       this.setState(() => ({session: null}))
@@ -65,11 +89,11 @@ class App extends Component {
     });
   };
 
-  open = async (x, y) => {
-    this.lastStatus = await this.protocol.open(x, y);
+  open = async (x: any, y: any) => {
+    this.lastStatus = await this.protocol.open(x, y) as string;
   };
 
-  startSession = async (level) => {
+  startSession = async (level: any) => {
 
     await this.protocol.startSession(level);
 
@@ -86,17 +110,17 @@ class App extends Component {
     const [frees, mines, candidates, descriptors] = solve(map);
 
     this.setState(() => ({
-      map,
-      frees,
-      candidates,
-      descriptors,
-      mines,
-      progress: this.calculateProgress(map)
+      map: (map as any[][]),
+      frees: (frees as any[]),
+      candidates: (candidates as any[]),
+      descriptors: (descriptors as any[]),
+      mines: (mines as any[]),
+      progress: this.calculateProgress(map as any[][])
     }));
 
     if (!this.state.pause) {
 
-      for (let i = 0; i < frees.length; i++) {
+      for (let i = 0; frees && i < frees.length; i++) {
 
         this.setState(() => ({
           opening: {
@@ -109,9 +133,9 @@ class App extends Component {
         await this.open(open[1], open[0]);
 
         if (this.finished() === 'win') {
-          if (this.state.session < 4) {
+          if (this.state.session === null || this.state.session < 4) {
             this.lastStatus = null;
-            this.startSession(this.state.session + 1);
+            this.startSession((this.state.session || 0) + 1);
           }
           return;
         } else if (this.finished() === 'lose') {
@@ -126,7 +150,7 @@ class App extends Component {
     }
   };
 
-  calculateProgress = (map) => {
+  calculateProgress = (map: any[][]) => {
     let total = 0, unopened = 0;
 
     for (let r = 0; r < map.length; r++) {
@@ -145,10 +169,10 @@ class App extends Component {
     };
   };
 
-  updateSessionResult = (result) => {
+  updateSessionResult = (result: string) => {
     this.setState((prevState) => {
       const newState = {sessionResults: {...prevState.sessionResults}};
-      newState.sessionResults[this.state.session] = result;
+      newState.sessionResults[this.state.session!] = result;
       return newState;
     });
   };
